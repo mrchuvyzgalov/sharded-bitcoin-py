@@ -4,7 +4,7 @@ from beacon import BeaconBlock
 from blockchain import Block
 from constants import TxField, BlockField, BlockchainField, DisconnectField, SnapshotField, BeaconNodeField, \
     CreatorField, BeaconBlockField, SignatureField, BeaconChainField, RequestBeaconField, RebroadcastField, Stage, \
-    TxIdSendingField, GetTxsField
+    TxIdSendingField, GetTxsField, BeaconNodeDisconnectField
 from snapshot import Snapshot
 from transaction import Transaction, TxInput, TxOutput
 
@@ -34,17 +34,24 @@ class DeserializeService:
         return data[RebroadcastField.HOST], int(data[RebroadcastField.PORT]), block
 
     @staticmethod
-    def deserialize_chain(data: dict) -> List[Block]:
+    def deserialize_chain(data: dict) -> (List[Block], dict):
         blocks = [DeserializeService.deserialize_block(block) for block in data[BlockchainField.BLOCKS]]
-        return blocks
+        utxo: dict = {
+            txid: {
+                int(index): TxOutput(**txout)
+                for index, txout in outputs.items()
+            }
+            for txid, outputs in data[BlockchainField.UTXOS].items()
+        }
+        return blocks, utxo
 
     @staticmethod
     def deserialize_disconnect(data: dict) -> (str, int, int):
-        return data[DisconnectField.HOST], data[DisconnectField.PORT], data[DisconnectField.SHARD]
+        return data[DisconnectField.HOST], int(data[DisconnectField.PORT]), int(data[DisconnectField.SHARD])
 
     @staticmethod
-    def deserialize_beacon_node(data: dict) -> (str, int, int):
-        return data[BeaconNodeField.HOST], data[BeaconNodeField.PORT], data[BeaconNodeField.STAKE]
+    def deserialize_beacon_node_disconnect(data: dict) -> (str, int):
+        return data[BeaconNodeDisconnectField.HOST], int(data[BeaconNodeDisconnectField.PORT])
 
     @staticmethod
     def deserialize_snapshot(data: dict) -> Snapshot:

@@ -84,7 +84,7 @@ class Transaction:
         if self.is_coinbase():
             return shard_id_receivers[0]
         shard_id_sender = ShardService.get_shard_id(pubkey_to_address(self.inputs[0].pubkey))
-        return next((x for x in shard_id_receivers if x != shard_id_sender), None)
+        return next((x for x in shard_id_receivers if x != shard_id_sender), shard_id_sender)
 
     def hash(self) -> str:
         tx_str = self.to_json(include_signatures=False)

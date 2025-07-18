@@ -65,6 +65,7 @@ class RebroadcastField:
 
 class BlockchainField:
     BLOCKS = "blocks"
+    UTXOS = "utxos"
 
 class DisconnectField:
     HOST = "host"
@@ -72,7 +73,7 @@ class DisconnectField:
     SHARD = "shard"
 
 class Constants:
-    NUMBER_OF_SHARDS = 2
+    NUMBER_OF_SHARDS = 1
     MINER_REWARD = 50 / NUMBER_OF_SHARDS
     EPOCH = 100
     DIFFICULTY = 3
@@ -94,6 +95,7 @@ class BeaconNodeField:
 class BeaconNodeDisconnectField:
     HOST = "host"
     PORT = "port"
+    STAKE = "stake"
 
 class CreatorField:
     HOST = "host"

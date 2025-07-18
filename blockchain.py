@@ -92,29 +92,15 @@ class Blockchain:
         self.pending_txs.append(tx)
         return True
 
-    # def update_utxo_set(self, tx, my_shard: int):
-    #     txid = tx.hash()
-    #     for txin in tx.inputs:
-    #         if txin.tx_id in self.utxo_set and txin.index in self.utxo_set[txin.tx_id]:
-    #             del self.utxo_set[txin.tx_id][txin.index]
-    #             if not self.utxo_set[txin.tx_id]:
-    #                 del self.utxo_set[txin.tx_id]
-    #     for index, txout in enumerate(tx.outputs):
-    #         if txid not in self.utxo_set:
-    #             self.utxo_set[txid] = {}
-    #         self.utxo_set[txid][index] = txout
-
     def update_utxo_set(self, tx: Transaction, my_shard: int):
         txid = tx.hash()
 
-        # Удаление input'ов (всегда, независимо от шарда)
         for txin in tx.inputs:
             if txin.tx_id in self.utxo_set and txin.index in self.utxo_set[txin.tx_id]:
                 del self.utxo_set[txin.tx_id][txin.index]
                 if not self.utxo_set[txin.tx_id]:
                     del self.utxo_set[txin.tx_id]
 
-        # Добавление output'ов (только если получатель из текущего шарда)
         for index, txout in enumerate(tx.outputs):
             receiver_shard = ShardService.get_shard_id(txout.address)
 
@@ -125,9 +111,24 @@ class Blockchain:
                 self.utxo_set[txid] = {}
             self.utxo_set[txid][index] = txout
 
-    def rebuild_utxo_set(self):
+    # def rebuild_utxo_set(self):
+    #     self.utxo_set = {}
+    #     spent = set()
+    #     for block in self.chain:
+    #         for tx in block.transactions:
+    #             txid = tx.hash()
+    #             for txin in tx.inputs:
+    #                 spent.add((txin.tx_id, txin.index))
+    #             for index, txout in enumerate(tx.outputs):
+    #                 if (txid, index) not in spent:
+    #                     if txid not in self.utxo_set:
+    #                         self.utxo_set[txid] = {}
+    #                     self.utxo_set[txid][index] = txout
+
+    def rebuild_utxo_set(self, my_shard: int):
         self.utxo_set = {}
         spent = set()
+
         for block in self.chain:
             for tx in block.transactions:
                 txid = tx.hash()
@@ -135,9 +136,10 @@ class Blockchain:
                     spent.add((txin.tx_id, txin.index))
                 for index, txout in enumerate(tx.outputs):
                     if (txid, index) not in spent:
-                        if txid not in self.utxo_set:
-                            self.utxo_set[txid] = {}
-                        self.utxo_set[txid][index] = txout
+                        if ShardService.get_shard_id(txout.address) == my_shard:
+                            if txid not in self.utxo_set:
+                                self.utxo_set[txid] = {}
+                            self.utxo_set[txid][index] = txout
 
     def validate_transaction(self, tx):
         input_sum = 0
@@ -192,10 +194,10 @@ class Blockchain:
 
         return True
 
-    def try_to_update_chain(self, blocks: list[Block]):
+    def try_to_update_chain(self, blocks: list[Block], utxo: dict):
         if len(self.chain) < len(blocks):
             self.chain = blocks.copy()
-            self.rebuild_utxo_set()
+            self.utxo_set = utxo.copy()
 
     def get_balance(self, address: str) -> float:
         balance = 0.0
@@ -206,4 +208,13 @@ class Blockchain:
         return balance
 
     def to_dict(self):
-        return { BlockchainField.BLOCKS: [block.to_dict() for block in self.chain] }
+        return {
+            BlockchainField.BLOCKS: [block.to_dict() for block in self.chain],
+            BlockchainField.UTXOS: {
+                txid: {
+                    str(index): txout.to_dict()
+                    for index, txout in outputs.items()
+                }
+                for txid, outputs in self.utxo_set.items()
+            }
+        }
