@@ -5,6 +5,7 @@ import base64
 
 from constants import TxInputField, TxOutputField, MetadataType, TxField
 from shard_service import ShardService
+from wallet import pubkey_to_address, get_public_key
 
 
 class TxInput:
@@ -67,9 +68,9 @@ class Transaction:
         return json.dumps(self.to_dict(include_signatures), sort_keys=True)
 
     def is_cross_shard(self) -> bool:
-        if self.is_coinbase() or self.is_stake():
+        if self.is_coinbase() or self.is_stake() or self.is_refund():
             return False
-        shard_id_sender = ShardService.get_shard_id(self.inputs[0].pubkey)
+        shard_id_sender = ShardService.get_shard_id(pubkey_to_address(self.inputs[0].pubkey))
         return shard_id_sender != self.get_shard_destination()
 
     def is_stake(self) -> bool:
@@ -82,7 +83,7 @@ class Transaction:
         shard_id_receivers = list(set([ShardService.get_shard_id(out.address) for out in self.outputs]))
         if self.is_coinbase():
             return shard_id_receivers[0]
-        shard_id_sender = ShardService.get_shard_id(self.inputs[0].pubkey)
+        shard_id_sender = ShardService.get_shard_id(pubkey_to_address(self.inputs[0].pubkey))
         return next((x for x in shard_id_receivers if x != shard_id_sender), None)
 
     def hash(self) -> str:
@@ -94,7 +95,7 @@ class Transaction:
         message = self.hash()
         signature = sk.sign(message.encode())
         self.inputs[index].signature = base64.b64encode(signature).decode()
-        self.inputs[index].pubkey = base64.b64encode(sk.get_verifying_key().to_string()).decode()
+        self.inputs[index].pubkey = get_public_key(privkey_wif)
 
     def is_valid(self, utxo_set: dict[str, dict[int, TxOutput]]) -> bool:
         input_sum = 0

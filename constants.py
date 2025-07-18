@@ -9,6 +9,7 @@ class MessageType:
     MINING = "mining"
     REBROADCAST = "rebroadcast"
     FINALISE_BLOCK = "finalize_block"
+    CONTINUE_MINING = "continue_mining"
     DISCONNECT = "disconnect"
     REFUND = "refund"
     BEACON_NODE = "beacon_node"
@@ -20,6 +21,9 @@ class MessageType:
     BROADCAST_BEACON_BLOCK = "broadcast_beacon_block"
     REQUEST_BEACON = "request_beacon"
     BEACON_CHAIN = "beacon_chain"
+    TX_ID_SENDING = "tx_id_sending"
+    GET_TXS = "get_txs"
+    TXS_RECEIVED = "txs_received"
 
 class MessageField:
     TYPE = "type"
@@ -53,6 +57,11 @@ class BlockField:
     TRANSACTIONS = "transactions"
     NONCE = "nonce"
     TIMESTAMP = "timestamp"
+
+class RebroadcastField:
+    HOST = "host"
+    PORT = "port"
+    BLOCK = "block"
 
 class BlockchainField:
     BLOCKS = "blocks"
@@ -115,6 +124,16 @@ class RequestBeaconField:
 class BeaconChainField:
     BLOCKS = "blocks"
 
+class TxIdSendingField:
+    TX_IDS = "tx_ids"
+
+class GetTxsField:
+    TRANSACTIONS = "transactions"
+
 class Role(Enum):
     MINER = "miner"
     USER = "user"
+
+class Stage(Enum):
+    TX = "tx"
+    MINING = "mining"

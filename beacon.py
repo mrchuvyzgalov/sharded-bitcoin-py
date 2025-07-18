@@ -109,7 +109,6 @@ class BeaconChain:
             return False
         if block.index != len(self.chain):
             return False
-        print(f"Beacon Block: {block.to_dict()}")
         if len(set([x.shard_id for x in block.snapshots])) != Constants.NUMBER_OF_SHARDS:
             return False
         return True
@@ -126,4 +125,4 @@ class BeaconChain:
         for block in self.chain:
             print(f"  Block #{block.index} | hash: {block.hash()[:8]}... | prev: {block.previous_hash[:8]}...")
             for sn in block.snapshots:
-                print(f"    └─ sn {sn.hash()[:8]}")
+                print(f"    └─ sn {sn.hash()[:8]}...")

@@ -3,7 +3,7 @@ import socket
 import random
 import os
 
-from constants import Role, Constants, MetadataType
+from constants import Role, Constants, MetadataType, Stage
 from node import Node
 from shard_service import ShardService
 from transaction import TxInput, TxOutput, Transaction
@@ -41,6 +41,7 @@ def show_menu(node: Node):
         print("6. Show number of shard")
         print("7. Become a Beacon validator")
         print("8. Show beacon")
+        print("9. Show beacon nodes")
         print("0. Exit")
 
         choice = input("Choice: ").strip()
@@ -52,11 +53,15 @@ def show_menu(node: Node):
             print(f"💰 Balance: {bal} BTC")
 
         elif choice == "3":
+            if node.get_stage() != Stage.TX:
+                print("Wait a little bit... And repeat")
+                continue
             to = input("Recipient (address): ").strip()
             amt = input("Amount of coins: ").strip()
             try:
                 amt = int(amt)
                 tx = create_transaction(node, to, amt)
+                print(f"TX: {tx.to_dict()}")
                 if tx:
                     node.blockchain.add_transaction(tx)
                     node.broadcast_transaction(tx)
@@ -77,6 +82,9 @@ def show_menu(node: Node):
             print(f"Your number of shard: {ShardService.get_shard_id(node.address)}")
 
         elif choice == "7":
+            if node.get_stage() != Stage.TX:
+                print("Wait a little bit... And repeat")
+                continue
             if node.is_beacon_node():
                 print(f"You are already a Beacon node")
                 continue
@@ -96,6 +104,9 @@ def show_menu(node: Node):
         elif choice == "8":
             node.beacon.print_chain()
 
+        elif choice == "9":
+            print(list(node.beacon_nodes))
+
         elif choice == "0":
             node.disconnect()
             print("👋 Goodbye!")
@@ -107,7 +118,7 @@ def create_stake_transaction(node: Node,
                              stake: int) -> Transaction | None:
     utxos = node.blockchain.get_effective_utxo_set()
     my_address = node.address
-    my_privkey = node.wallet
+    my_privkey = node.private_key
 
     selected_inputs = []
     total = 0
@@ -143,7 +154,7 @@ def create_stake_transaction(node: Node,
 def create_transaction(node: Node, to_address: str, amount: int) -> Transaction | None:
     utxos = node.blockchain.get_effective_utxo_set()
     my_address = node.address
-    my_privkey = node.wallet
+    my_privkey = node.private_key
 
     selected_inputs = []
     total = 0

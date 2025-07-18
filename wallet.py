@@ -13,6 +13,13 @@ def generate_keypair() -> (str, str):
     return privkey_b64, pubkey_b64
 
 
+def get_public_key(privkey_b64: str) -> str:
+    sk = ecdsa.SigningKey.from_string(base64.b64decode(privkey_b64), curve=ecdsa.SECP256k1)
+    vk = sk.get_verifying_key()
+    pubkey_bytes = vk.to_string()
+    return base64.b64encode(pubkey_bytes).decode()
+
+
 def pubkey_to_address(pubkey_b64: str) -> str:
     pubkey_bytes = base64.b64decode(pubkey_b64)
     return hashlib.sha256(pubkey_bytes).hexdigest()

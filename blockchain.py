@@ -3,8 +3,11 @@ import time
 import hashlib
 
 from constants import BlockField, BlockchainField, Constants, MetadataType
+from shard_service import ShardService
 from snapshot import Snapshot
 from transaction import Transaction, TxOutput
+from wallet import pubkey_to_address
+
 
 class Block:
     def __init__(self,
@@ -89,14 +92,35 @@ class Blockchain:
         self.pending_txs.append(tx)
         return True
 
-    def update_utxo_set(self, tx):
+    # def update_utxo_set(self, tx, my_shard: int):
+    #     txid = tx.hash()
+    #     for txin in tx.inputs:
+    #         if txin.tx_id in self.utxo_set and txin.index in self.utxo_set[txin.tx_id]:
+    #             del self.utxo_set[txin.tx_id][txin.index]
+    #             if not self.utxo_set[txin.tx_id]:
+    #                 del self.utxo_set[txin.tx_id]
+    #     for index, txout in enumerate(tx.outputs):
+    #         if txid not in self.utxo_set:
+    #             self.utxo_set[txid] = {}
+    #         self.utxo_set[txid][index] = txout
+
+    def update_utxo_set(self, tx: Transaction, my_shard: int):
         txid = tx.hash()
+
+        # Удаление input'ов (всегда, независимо от шарда)
         for txin in tx.inputs:
             if txin.tx_id in self.utxo_set and txin.index in self.utxo_set[txin.tx_id]:
                 del self.utxo_set[txin.tx_id][txin.index]
                 if not self.utxo_set[txin.tx_id]:
                     del self.utxo_set[txin.tx_id]
+
+        # Добавление output'ов (только если получатель из текущего шарда)
         for index, txout in enumerate(tx.outputs):
+            receiver_shard = ShardService.get_shard_id(txout.address)
+
+            if receiver_shard != my_shard:
+                continue
+
             if txid not in self.utxo_set:
                 self.utxo_set[txid] = {}
             self.utxo_set[txid][index] = txout
@@ -127,6 +151,12 @@ class Blockchain:
             output_sum += txout.amount
         return output_sum <= input_sum
 
+    def print_utxo_set(self):
+        print("🔎 Current UTXO set:")
+        for txid, outputs in self.utxo_set.items():
+            for index, txout in outputs.items():
+                print(f"🧱 {txid[:8]}:{index} → {txout.amount} to {txout.address[:8]}...")
+
     def validate_block(self, block):
         if block.previous_hash != self.chain[-1].hash():
             return False
@@ -134,9 +164,6 @@ class Blockchain:
         temp_utxo = copy.deepcopy(self.utxo_set)
 
         for i, tx in enumerate(block.transactions):
-            if tx.is_coinbase() or tx.is_refund():
-                continue
-
             input_total = 0
             output_total = 0
 
@@ -150,9 +177,10 @@ class Blockchain:
             for txout in tx.outputs:
                 output_total += txout.amount
 
-            if input_total < output_total:
-                print(f"❌ Тx #{i}: input < output")
-                return False
+            if not tx.is_coinbase() and tx.is_refund():
+                if input_total < output_total:
+                    print(f"❌ Тx #{i}: input < output")
+                    return False
 
             for txin in tx.inputs:
                 del temp_utxo[txin.tx_id][txin.index]
@@ -163,15 +191,6 @@ class Blockchain:
             }
 
         return True
-
-    def add_block(self, block):
-        if block.previous_hash == self.chain[-1].hash():
-            if self.validate_block(block):
-                self.chain.append(block)
-                for tx in block.transactions:
-                    self.update_utxo_set(tx)
-                return True
-        return False
 
     def try_to_update_chain(self, blocks: list[Block]):
         if len(self.chain) < len(blocks):

@@ -1,9 +1,10 @@
 from typing import List
 
-from beacon import BeaconBlock, BeaconChain
+from beacon import BeaconBlock
 from blockchain import Block
 from constants import TxField, BlockField, BlockchainField, DisconnectField, SnapshotField, BeaconNodeField, \
-    CreatorField, BeaconBlockField, SignatureField, BeaconChainField, RequestBeaconField
+    CreatorField, BeaconBlockField, SignatureField, BeaconChainField, RequestBeaconField, RebroadcastField, Stage, \
+    TxIdSendingField, GetTxsField
 from snapshot import Snapshot
 from transaction import Transaction, TxInput, TxOutput
 
@@ -26,6 +27,11 @@ class DeserializeService:
             nonce=data[BlockField.NONCE],
             timestamp=data[BlockField.TIMESTAMP]
         )
+
+    @staticmethod
+    def deserialize_rebroadcast(data: dict) -> (str, int, Block):
+        block = DeserializeService.deserialize_block(data[RebroadcastField.BLOCK])
+        return data[RebroadcastField.HOST], int(data[RebroadcastField.PORT]), block
 
     @staticmethod
     def deserialize_chain(data: dict) -> List[Block]:
@@ -62,20 +68,28 @@ class DeserializeService:
 
     @staticmethod
     def deserialize_creator_of_beacon_node(data: dict) -> (str, int):
-        return data[CreatorField.HOST], data[CreatorField.PORT]
+        return data[CreatorField.HOST], int(data[CreatorField.PORT])
 
     @staticmethod
     def deserialize_request_beacon_chain(data: dict) -> (str, int):
-        return data[RequestBeaconField.HOST], data[RequestBeaconField.PORT]
+        return data[RequestBeaconField.HOST], int(data[RequestBeaconField.PORT])
 
     @staticmethod
     def deserialize_beacon_chain(data: dict) -> List[BeaconBlock]:
-        blocks = [DeserializeService.deserialize_beacon_block(block) for block in data[BeaconChainField.CHAIN]]
+        blocks = [DeserializeService.deserialize_beacon_block(block) for block in data[BeaconChainField.BLOCKS]]
         return blocks
 
     @staticmethod
     def deserialize_signature(data: dict) -> (str, str):
         return data[SignatureField.ADDRESS], data[SignatureField.SIGNATURE]
+
+    @staticmethod
+    def deserialize_tx_id_sending(data: dict) -> list:
+        return data[TxIdSendingField.TX_IDS]
+
+    @staticmethod
+    def deserialize_txs(data: dict) -> list[Transaction]:
+        return [DeserializeService.deserialize_tx(tx) for tx in data[GetTxsField.TRANSACTIONS]]
 
     @staticmethod
     def _dict_str_keys_to_int(d: dict[str, list]) -> dict[int, list]:
