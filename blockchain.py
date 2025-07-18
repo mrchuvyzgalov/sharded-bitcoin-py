@@ -111,20 +111,6 @@ class Blockchain:
                 self.utxo_set[txid] = {}
             self.utxo_set[txid][index] = txout
 
-    # def rebuild_utxo_set(self):
-    #     self.utxo_set = {}
-    #     spent = set()
-    #     for block in self.chain:
-    #         for tx in block.transactions:
-    #             txid = tx.hash()
-    #             for txin in tx.inputs:
-    #                 spent.add((txin.tx_id, txin.index))
-    #             for index, txout in enumerate(tx.outputs):
-    #                 if (txid, index) not in spent:
-    #                     if txid not in self.utxo_set:
-    #                         self.utxo_set[txid] = {}
-    #                     self.utxo_set[txid][index] = txout
-
     def rebuild_utxo_set(self, my_shard: int):
         self.utxo_set = {}
         spent = set()
