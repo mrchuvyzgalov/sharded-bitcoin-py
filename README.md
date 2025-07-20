@@ -142,13 +142,25 @@ This setup enables the estimation of the approximate transactions-per-second (TP
 In ordef to launch miner, execute the following command:
 
 ```bash
-python research.py miner
+python research.py miner {number of shard (0/1)}
 ```
 
-In ordef to launch non-miner, execute the following command:
+For example:
 
 ```bash
-python research.py
+python research.py miner 0
+```
+
+In order to launch non-miner, execute the following command:
+
+```bash
+python research.py user {number of shard (0/1)}
+```
+
+For example:
+
+```bash
+python research.py user 1
 ```
 
 To start the research, you need to follow these steps:  
