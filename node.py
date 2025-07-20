@@ -73,7 +73,7 @@ class Node:
         print(f"🏠 Wallet address: {self.address[:8]}...")
 
     def add_and_broadcast_tx(self, tx: Transaction) -> bool:
-        if self.blockchain.add_transaction(tx):
+        if self.get_stage() == Stage.TX and self.blockchain.add_transaction(tx):
             self.broadcast_transaction(tx)
             return True
         return False

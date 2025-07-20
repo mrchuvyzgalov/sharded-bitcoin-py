@@ -5,14 +5,14 @@ import time
 
 from constants import Role, Stage, Constants
 from deserialize_service import DeserializeService
-from main import choose_port, create_stake_transaction, create_transaction
+from main import choose_port, create_transaction
 from node import Node
 from shard_service import ShardService
 from wallet import load_wallet, get_public_key, pubkey_to_address
 
 amount_of_generated_blocks = 3
 coins_to_send = 1
-delay = 0.12
+delay = 0.08
 
 def start_best_case_research(node: Node, addresses: list[str]) -> (int, float): # (amount of added txs, time)
     amount_of_blocks_before = len(node.blockchain.chain)
