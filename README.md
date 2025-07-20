@@ -53,6 +53,10 @@ pip install pytest
 
 ## 🚀 Run Modes
 
+To ensure correct network operation, two miner nodes must be launched simultaneously: one for shard 0 and one for shard 1. Additionally, at least one of the miner nodes must be designated as a Beacon node via the CLI. It is important to note that at least one Beacon node must always be present in the network.
+
+A miner becomes a Beacon node only for a single epoch (100 blocks).  
+
 **1. Node mode (non-miner):**
 
 ```bash
