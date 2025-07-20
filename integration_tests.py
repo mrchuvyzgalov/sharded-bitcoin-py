@@ -96,8 +96,8 @@ def test_node_can_synchronize_chain_in_one_shard(temp_wallet_file1, temp_wallet_
     user_node = Node(host=host, port=user_port, role=Role.USER, wallet_file=temp_wallet_file2)
 
     # mocks
-    miner_node._external_ip = host
-    user_node._external_ip = host
+    miner_node.external_ip = host
+    user_node.external_ip = host
 
     miner_node._listen_tcp = None
     user_node._listen_tcp = None
@@ -189,8 +189,8 @@ def test_transaction_propagates_between_nodes_in_one_shard(temp_wallet_file1, te
     user_node = Node(host=host, port=user_port, role=Role.USER, wallet_file=temp_wallet_file2)
 
     # mocks
-    miner_node._external_ip = host
-    user_node._external_ip = host
+    miner_node.external_ip = host
+    user_node.external_ip = host
 
     miner_node._listen_tcp = None
     user_node._listen_tcp = None
@@ -291,8 +291,8 @@ def test_node_can_synchronize_beacon_chain_in_two_shards(temp_wallet_file_shard0
     miner_node1 = Node(host=host, port=miner_port1, role=Role.MINER, wallet_file=temp_wallet_file_shard1)
 
     # mocks
-    miner_node0._external_ip = host
-    miner_node1._external_ip = host
+    miner_node0.external_ip = host
+    miner_node1.external_ip = host
 
     miner_node0._listen_tcp = None
     miner_node1._listen_tcp = None
@@ -387,8 +387,8 @@ def test_cross_transaction_propagates_between_two_shards(temp_wallet_file_shard0
     miner_node1 = Node(host=host, port=miner_port1, role=Role.MINER, wallet_file=temp_wallet_file_shard1)
 
     # mocks
-    miner_node0._external_ip = host
-    miner_node1._external_ip = host
+    miner_node0.external_ip = host
+    miner_node1.external_ip = host
 
     miner_node0._listen_tcp = None
     miner_node1._listen_tcp = None

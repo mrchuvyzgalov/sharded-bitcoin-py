@@ -33,7 +33,7 @@ def _get_local_ip():
 class Node:
     def __init__(self, host: str, port: int, role: Role = Role.USER, wallet_file="my_wallet.txt"):
         self._host = host
-        self._port = port
+        self.port = port
         self.peers: dict[int, set] = {
             shard_id: set()
             for shard_id in range(Constants.NUMBER_OF_SHARDS)
@@ -43,7 +43,7 @@ class Node:
         self.public_key = get_public_key(self.private_key)
         self.address = pubkey_to_address(self.public_key)
         self._discovery_port = 9000
-        self._external_ip = _get_local_ip()
+        self.external_ip = _get_local_ip()
         self.role = role
 
         self._pending_blocks: dict[str, list] = {}
@@ -69,7 +69,7 @@ class Node:
         self._i_am_beacon_creator: bool = False
         self._broadcasted_bblock: bool = False
 
-        print(f"🟢 Node launched at {self._external_ip}:{self._port}")
+        print(f"🟢 Node launched at {self.external_ip}:{self.port}")
         print(f"🏠 Wallet address: {self.address[:8]}...")
 
     def add_and_broadcast_tx(self, tx: Transaction) -> bool:
@@ -162,7 +162,7 @@ class Node:
 
     def become_a_beacon_validator(self, tx: Transaction):
         stake = tx.metadata[MetadataType.STAKE]
-        self.stakes[f"{self._external_ip}:{self._port}"] = stake
+        self.stakes[f"{self.external_ip}:{self.port}"] = stake
 
         time.sleep(6)
         if len(self.beacon_nodes) == 0:
@@ -233,7 +233,7 @@ class Node:
 
     def _listen_tcp(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind((self._host, self._port))
+        sock.bind((self._host, self.port))
         sock.listen()
         print("📥 Waiting for TCP connections...")
         while True:
@@ -416,8 +416,8 @@ class Node:
                     {
                         MessageField.TYPE: MessageType.REBROADCAST,
                         MessageField.DATA: {
-                            RebroadcastField.HOST: self._external_ip,
-                            RebroadcastField.PORT: self._port,
+                            RebroadcastField.HOST: self.external_ip,
+                            RebroadcastField.PORT: self.port,
                             RebroadcastField.BLOCK: block.to_dict()
                         }
                     }
@@ -460,7 +460,7 @@ class Node:
 
         elif msg_type == MessageType.CREATOR:
             ip, port = DeserializeService.deserialize_creator_of_beacon_node(data)
-            if ip == self._external_ip and int(port) == self._port:
+            if ip == self.external_ip and int(port) == self.port:
                 self._send_beacon_block()
 
         elif msg_type == MessageType.BEACON_BLOCK:
@@ -549,8 +549,8 @@ class Node:
             {
                 MessageField.TYPE: MessageType.REQUEST_BEACON,
                 MessageField.DATA: {
-                    RequestBeaconField.HOST: self._external_ip,
-                    RequestBeaconField.PORT: self._port,
+                    RequestBeaconField.HOST: self.external_ip,
+                    RequestBeaconField.PORT: self.port,
                 }
             }
         )
@@ -566,7 +566,7 @@ class Node:
         for node in self.beacon_nodes:
             ip, port = node.split(":")
             peer = (ip, int(port))
-            if ip != self._external_ip or int(port) != self._port:
+            if ip != self.external_ip or int(port) != self.port:
                 try:
                     with socket.socket() as s:
                         s.connect(peer)
@@ -614,8 +614,8 @@ class Node:
         self._broadcast({
             MessageField.TYPE: MessageType.REBROADCAST,
             MessageField.DATA: {
-                RebroadcastField.HOST: self._external_ip,
-                RebroadcastField.PORT: self._port,
+                RebroadcastField.HOST: self.external_ip,
+                RebroadcastField.PORT: self.port,
                 RebroadcastField.BLOCK: block.to_dict()
             }
         })
@@ -624,8 +624,8 @@ class Node:
         self._broadcast({
             MessageField.TYPE: MessageType.DISCONNECT,
             MessageField.DATA: {
-                DisconnectField.HOST: self._external_ip,
-                DisconnectField.PORT: self._port,
+                DisconnectField.HOST: self.external_ip,
+                DisconnectField.PORT: self.port,
                 DisconnectField.SHARD: ShardService.get_shard_id(self.address)
             }
         })
@@ -651,7 +651,7 @@ class Node:
     def _broadcast_to_shard(self, message: dict, shard_id: int):
         raw = json.dumps(message).encode()
         for peer in self.peers[shard_id].copy():
-            if peer[0] != self._external_ip or int(peer[1]) != self._port:
+            if peer[0] != self.external_ip or int(peer[1]) != self.port:
                 try:
                     with socket.socket() as s:
                         s.connect(peer)
@@ -662,7 +662,7 @@ class Node:
     def _broadcast(self, message: dict):
         raw = json.dumps(message).encode()
         for peer in self.peers[ShardService.get_shard_id(self.address)].copy():
-            if peer[0] != self._external_ip or int(peer[1]) != self._port:
+            if peer[0] != self.external_ip or int(peer[1]) != self.port:
                 try:
                     with socket.socket() as s:
                         s.connect(peer)
@@ -674,7 +674,7 @@ class Node:
         raw = json.dumps(message).encode()
         for shard in range(Constants.NUMBER_OF_SHARDS):
             for peer in self.peers[shard].copy():
-                if peer[0] != self._external_ip or int(peer[1]) != self._port:
+                if peer[0] != self.external_ip or int(peer[1]) != self.port:
                     try:
                         with socket.socket() as s:
                             s.connect(peer)
@@ -706,8 +706,8 @@ class Node:
         self._broadcast_to_all({
             MessageField.TYPE: MessageType.BEACON_NODE_DISCONNECT,
             MessageField.DATA: {
-                BeaconNodeDisconnectField.HOST: self._external_ip,
-                BeaconNodeDisconnectField.PORT: self._port
+                BeaconNodeDisconnectField.HOST: self.external_ip,
+                BeaconNodeDisconnectField.PORT: self.port
             }
         })
 
@@ -741,8 +741,8 @@ class Node:
         while True:
             data, addr = sock.recvfrom(1024)
             if data == b"DISCOVER":
-                ip = self._external_ip
-                port = self._port
+                ip = self.external_ip
+                port = self.port
                 shard_id = ShardService.get_shard_id(self.address)
                 is_beacon = self.is_beacon_node()
                 stake = self.stakes[f"{ip}:{port}"] if is_beacon else 0
@@ -774,7 +774,7 @@ class Node:
                     try:
                         data, addr = sock.recvfrom(1024)
                         peer_host, peer_port, shard_id, is_beacon, stake = data.decode().split(":")
-                        if peer_host == self._external_ip and int(peer_port) == self._port:
+                        if peer_host == self.external_ip and int(peer_port) == self.port:
                             continue
                         peer = (peer_host, int(peer_port))
                         self.peers[int(shard_id)].add(peer)
@@ -798,7 +798,7 @@ class Node:
             time.sleep(5)
 
     def _is_leader(self) -> bool:
-        my_id = f"{self._external_ip}:{self._port}"
+        my_id = f"{self.external_ip}:{self.port}"
         peer_ids = [f"{host}:{port}" for (host, port) in self.peers[ShardService.get_shard_id(self.address)]]
         return my_id == min([my_id] + peer_ids)
 
@@ -806,6 +806,6 @@ class Node:
         if not self.is_beacon_node():
             return False
 
-        my_id = f"{self._external_ip}:{self._port}"
+        my_id = f"{self.external_ip}:{self.port}"
         peers_ids = [node_address for node_address in self.beacon_nodes]
         return my_id == min([my_id] + peers_ids)

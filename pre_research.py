@@ -42,10 +42,10 @@ if __name__ == "__main__":
     Constants.EPOCH = 100000
     AMOUNT_OF_BLOCKS = 2000
 
-    node0 = Node("0.0.0.0", 1111, role=role, wallet_file="research_files/my_wallet_shard0.txt")
+    node0 = Node("0.0.0.0", 1111, role=role, wallet_file="research_files/miner_wallet_shard0.txt")
     blocks0, snaps0 = prepare_miner(node0, AMOUNT_OF_BLOCKS)
 
-    node1 = Node("0.0.0.0", 2222, role=role, wallet_file="research_files/my_wallet_shard1.txt")
+    node1 = Node("0.0.0.0", 2222, role=role, wallet_file="research_files/miner_wallet_shard1.txt")
     blocks1, snaps1 = prepare_miner(node1, AMOUNT_OF_BLOCKS)
 
     beacon_blocks: list[BeaconBlock] = [create_genesis_block()]
