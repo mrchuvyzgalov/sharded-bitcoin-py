@@ -7,14 +7,18 @@ from constants import Role, Constants, MetadataType, Stage
 from node import Node
 from shard_service import ShardService
 from transaction import TxInput, TxOutput, Transaction
-from wallet import save_wallet, generate_keypair
+from wallet import save_wallet, generate_keypair, pubkey_to_address
 
 WALLET_FILE = os.getenv("WALLET_FILE", "my_wallet.txt")
 
-def ensure_wallet():
+def ensure_wallet(shard_id: int):
     if not os.path.exists(WALLET_FILE):
         print("🔐 Wallet not found. Generate a new one...")
-        priv, _ = generate_keypair()
+        priv, pubkey = generate_keypair()
+
+        while ShardService.get_shard_id(pubkey_to_address(pubkey)) != shard_id:
+            priv, pubkey = generate_keypair()
+
         save_wallet(WALLET_FILE, priv)
         print("✅ The wallet is saved in", WALLET_FILE)
 
@@ -181,13 +185,17 @@ def create_transaction(node: Node, to_address: str, amount: int) -> Transaction 
 
 if __name__ == "__main__":
     role = Role.USER
+    shard_id = None
 
     if len(sys.argv) > 1:
         command = sys.argv[1]
+        shard_id = int(sys.argv[2])
         if command == "miner":
             role = Role.MINER
+        elif command == "user":
+            role = Role.USER
 
-    ensure_wallet()
+    ensure_wallet(shard_id)
     port = choose_port()
     node = Node("0.0.0.0", port, role=role)
     node.start()
