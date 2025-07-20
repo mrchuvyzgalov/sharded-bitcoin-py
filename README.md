@@ -56,15 +56,26 @@ pip install pytest
 **1. Node mode (non-miner):**
 
 ```bash
-python main.py
+python main.py user {number of shard (0/1)}
+```
+
+For example:
+
+```bash
+python main.py user 0
 ```
 
 **2. Miner mode:**
 
 ```bash
-python main.py miner
+python main.py miner {number of shard (0/1)}
 ```
 
+For example:
+
+```bash
+python main.py user 1
+```
 
 ---
 
