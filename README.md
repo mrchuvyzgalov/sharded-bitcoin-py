@@ -8,7 +8,7 @@ Simulation of a simplified Sharded Bitcoin-like network implemented in Python us
 
 - **Decentralized P2P network** — no central server; peer discovery via UDP
 - **UTXO model** — transaction inputs/outputs with double-spend prevention
-- **Mining mode** — proof-of-work mining
+- **Mining mode** — proof-of-work mining for shards and proof-of-stake for beacon
 - **Block voting consensus** — majority selection on forks
 - **Wallet & key generation** — ECDSA-based address creation
 - **CLI interface** — balance query, transaction sending, blockchain viewing
@@ -18,6 +18,7 @@ Simulation of a simplified Sharded Bitcoin-like network implemented in Python us
 
 ## 📋 Repository Structure
 
+- **beacon.py** — beacon set logic  
 - **blockchain.py** — blockchain and UTXO set logic  
 - **constants.py** — constants for describing messages between nodes  
 - **deserialize_service.py** — functions for deserialization  
@@ -25,9 +26,12 @@ Simulation of a simplified Sharded Bitcoin-like network implemented in Python us
 - **wallet.py** — key generation and address handling  
 - **node.py** — P2P networking, message handling, synchronization  
 - **main.py** — CLI entry point (node or miner mode)
-- **unit_tests.py** — Unit tests for blockchain logic
+- **pre_research.py** — Preparation stage before research
+- **unit_tests.py** — Unit tests for blockchain/beacon logic
 - **integration_tests.py** — Integration tests for node communication logic
 - **research.py** — master thesis research
+- **shard_service.py** — shard-related functions
+- **snapshot.py** — snapshot class
 - **Dockerfile** — docker build for single node  
 - **docker-compose.yml** — multi-node configuration (nodes + miners)  
 - **README.md** — project documentation (this file)  
