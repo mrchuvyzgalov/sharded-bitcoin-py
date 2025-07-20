@@ -62,8 +62,7 @@ def show_menu(node: Node):
                 amt = int(amt)
                 tx = create_transaction(node, to, amt)
                 if tx:
-                    node.blockchain.add_transaction(tx)
-                    node.broadcast_transaction(tx)
+                    node.add_and_broadcast_tx(tx)
             except:
                 print(f"❌ Data error")
 
@@ -93,9 +92,7 @@ def show_menu(node: Node):
                 stake = int(stake)
                 tx = create_stake_transaction(node, stake)
                 if tx:
-                    node.blockchain.add_transaction(tx)
-                    node.broadcast_transaction(tx)
-                    node.become_a_beacon_validator(tx)
+                    node.add_and_broadcast_stake_transaction(tx)
             except Exception:
                 print(f"❌ Data error")
             print(f"")

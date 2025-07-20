@@ -73,7 +73,7 @@ class DisconnectField:
     SHARD = "shard"
 
 class Constants:
-    NUMBER_OF_SHARDS = 1
+    NUMBER_OF_SHARDS = 2
     MINER_REWARD = 50 / NUMBER_OF_SHARDS
     EPOCH = 100
     DIFFICULTY = 3

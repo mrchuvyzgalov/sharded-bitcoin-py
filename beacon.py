@@ -39,13 +39,6 @@ class BeaconBlock:
         message_hash = self.hash_content().encode()
         return base64.b64encode(sk.sign(message_hash)).decode()
 
-    def verify_signature(self, pubkey: str, signature: str) -> bool:
-        vk = ecdsa.VerifyingKey.from_string(pubkey, curve=ecdsa.SECP256k1)
-        try:
-            return vk.verify(base64.b64decode(signature), self.hash_content().encode())
-        except ecdsa.BadSignatureError:
-            return False
-
     def add_signature(self, validator: str, signature: str):
         self.validator_signatures[validator] = signature
 
@@ -60,7 +53,7 @@ class BeaconBlock:
         }
 
 
-def _create_genesis_block() -> BeaconBlock:
+def create_genesis_block() -> BeaconBlock:
     return BeaconBlock(
         index=0,
         previous_hash="0" * 64,
@@ -77,7 +70,7 @@ class BeaconChain:
         self.pending_snapshots: dict[int, Snapshot] = {}
 
     def start(self) -> None:
-        self.chain.append(_create_genesis_block())
+        self.chain.append(create_genesis_block())
 
     def start_with_chain(self, blocks: list[BeaconBlock]) -> None:
         self.chain = blocks

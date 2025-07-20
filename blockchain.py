@@ -4,9 +4,7 @@ import hashlib
 
 from constants import BlockField, BlockchainField, Constants, MetadataType
 from shard_service import ShardService
-from snapshot import Snapshot
 from transaction import Transaction, TxOutput
-from wallet import pubkey_to_address
 
 
 class Block:

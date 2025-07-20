@@ -54,7 +54,7 @@ class Node:
         self.beacon = BeaconChain()
         self._new_beacon_block: Optional[BeaconBlock] = None
 
-        self._message_queue = queue.Queue()
+        self.message_queue = queue.Queue()
 
         self.stage: Stage = Stage.TX
         self._stage_lock = threading.Lock()
@@ -66,9 +66,24 @@ class Node:
         self._tx_lock = threading.Lock()
 
         self._mining_thread = None
+        self._i_am_beacon_creator: bool = False
+        self._broadcasted_bblock: bool = False
 
         print(f"🟢 Node launched at {self._external_ip}:{self._port}")
         print(f"🏠 Wallet address: {self.address[:8]}...")
+
+    def add_and_broadcast_tx(self, tx: Transaction) -> bool:
+        if self.blockchain.add_transaction(tx):
+            self.broadcast_transaction(tx)
+            return True
+        return False
+
+    def add_and_broadcast_stake_transaction(self, tx: Transaction) -> bool:
+        if self.blockchain.add_transaction(tx):
+            self.broadcast_transaction(tx)
+            self.become_a_beacon_validator(tx)
+            return True
+        return False
 
     def _set_final_block(self, block: Optional[Block]):
         with self._final_block_lock:
@@ -108,7 +123,7 @@ class Node:
         self._mining_thread.start()
 
     def _check_cross_transaction_sending(self):
-        if self.is_beacon_node() and self._is_beacon_leader():
+        if self._is_beacon_leader():
             last_block = self.beacon.chain[-1]
             result = {
                 shard_id: []
@@ -117,10 +132,11 @@ class Node:
             for snap in last_block.snapshots:
                 for shard_id, txs in snap.cross_shard_receipts.items():
                     result[snap.shard_id].extend(txs)
+
             for shard_id in range(Constants.NUMBER_OF_SHARDS):
                 self._broadcast_tx_id_sending(shard_id, result[shard_id])
                 if shard_id == ShardService.get_shard_id(self.address):
-                    self._message_queue.put({
+                    self.message_queue.put({
                         MessageField.TYPE: MessageType.TX_ID_SENDING,
                         MessageField.DATA: {
                             TxIdSendingField.TX_IDS: result[shard_id]
@@ -129,8 +145,8 @@ class Node:
 
     def _process_message_queue(self):
         while True:
-            time.sleep(3)
-            message = self._message_queue.get()
+            time.sleep(1)
+            message = self.message_queue.get()
             try:
                 self._handle_message(message)
             except Exception as e:
@@ -172,12 +188,12 @@ class Node:
                                      metadata={MetadataType.REFUND: True},
                                      )
                 self._broadcast_refund_transaction(refund)
-                self._message_queue.put({
+                self.message_queue.put({
                     MessageField.TYPE: MessageType.REFUND,
                     MessageField.DATA: refund.to_dict()
                 })
 
-    def _verify_and_add_block(self, block) -> bool:
+    def verify_and_add_block(self, block) -> bool:
         if block.previous_hash == self.blockchain.chain[-1].hash():
             if self.blockchain.validate_block(block):
                 self.blockchain.pending_txs.clear()
@@ -197,7 +213,7 @@ class Node:
                                 cross_shard_receipts=self._get_cross_shard_tx(block))
             self._broadcast_snapshot(snapshot)
             if self.is_beacon_node():
-                self._message_queue.put({
+                self.message_queue.put({
                     MessageField.TYPE: MessageType.SNAPSHOT,
                     MessageField.DATA: snapshot.to_dict(),
                 })
@@ -226,11 +242,15 @@ class Node:
 
     def _handle_tcp_connection(self, conn):
         try:
-            data = conn.recv(100000).decode()
-            if not data:
-                return
+            buffer = b""
+            while True:
+                chunk = conn.recv(10000)
+                if not chunk:
+                    break
+                buffer += chunk
+            data = buffer.decode()
             message = json.loads(data)
-            self._message_queue.put(message)
+            self.message_queue.put(message)
         except Exception as e:
             print("❌ TCP error:", e)
         finally:
@@ -270,7 +290,7 @@ class Node:
             if 2 * best_votes >= len(self.peers[ShardService.get_shard_id(self.address)]):
                 if self._is_leader():
                     self._finalize_block(block=best_block)
-                    self._message_queue.put(
+                    self.message_queue.put(
                         {
                             MessageField.TYPE: MessageType.FINALISE_BLOCK,
                             MessageField.DATA: best_block.to_dict()
@@ -302,7 +322,7 @@ class Node:
                     CreatorField.PORT: port
                 }
             }
-            self._message_queue.put(message)
+            self.message_queue.put(message)
 
     def _send_txs(self, tx_ids: list):
         if not self._is_leader():
@@ -322,7 +342,7 @@ class Node:
 
         for to_shard, txs in result.items():
             self._broadcast_txs(to_shard, txs)
-        self._message_queue.put({
+        self.message_queue.put({
             MessageField.TYPE: MessageType.GET_TXS,
             MessageField.DATA: { GetTxsField.TRANSACTIONS: [tx.to_dict() for tx in result[my_shard]] }
         })
@@ -345,7 +365,8 @@ class Node:
                 self.blockchain.update_utxo_set(tx, ShardService.get_shard_id(self.address))
             if self._is_leader():
                 self._broadcast_to_all_beacon_nodes({MessageField.TYPE: MessageType.TXS_RECEIVED})
-                self._message_queue.put({MessageField.TYPE: MessageType.TXS_RECEIVED})
+                if self.is_beacon_node():
+                    self.message_queue.put({MessageField.TYPE: MessageType.TXS_RECEIVED})
 
         elif msg_type == MessageType.TXS_RECEIVED:
             if self._is_beacon_leader():
@@ -354,7 +375,7 @@ class Node:
                 if self._get_amount_of_shards_with_cross_txs() == Constants.NUMBER_OF_SHARDS:
                     self._restart_amount_of_shards_with_cross_txs()
                     self._broadcast_continue_mining()
-                    self._message_queue.put({MessageField.TYPE: MessageType.CONTINUE_MINING})
+                    self.message_queue.put({MessageField.TYPE: MessageType.CONTINUE_MINING})
 
         elif msg_type == MessageType.TX_ID_SENDING:
             if self._is_leader():
@@ -391,7 +412,7 @@ class Node:
                 self._register_pending_block(block)
 
                 self._rebroadcast_block(block)
-                self._message_queue.put(
+                self.message_queue.put(
                     {
                         MessageField.TYPE: MessageType.REBROADCAST,
                         MessageField.DATA: {
@@ -422,7 +443,7 @@ class Node:
                 block = self.blockchain.mine_block(self.address)
 
                 self._broadcast_block(block)
-                self._message_queue.put({
+                self.message_queue.put({
                     MessageField.TYPE: MessageType.BLOCK,
                     MessageField.DATA: block.to_dict()
                 })
@@ -448,7 +469,7 @@ class Node:
                 if self.beacon.validate_block(block):
                     signature = block.sign_block(self.private_key)
                     self._broadcast_signature(signature)
-                    self._message_queue.put(
+                    self.message_queue.put(
                         {
                             MessageField.TYPE: MessageType.SIGNATURE,
                             MessageField.DATA: {
@@ -461,11 +482,12 @@ class Node:
         elif msg_type == MessageType.SIGNATURE:
             address, signature = DeserializeService.deserialize_signature(data)
 
-            if self._is_beacon_creator():
+            if self._is_beacon_creator() and not self._broadcasted_bblock:
                 self._new_beacon_block.add_signature(address, signature)
-                if self._try_to_add_beacon_block():
+                if self._can_add_beacon_block():
+                    self._broadcasted_bblock = True
                     self._broadcast_broadcast_beacon_block()
-                    self._message_queue.put(
+                    self.message_queue.put(
                         {
                             MessageField.TYPE: MessageType.BROADCAST_BEACON_BLOCK,
                             MessageField.DATA: self._new_beacon_block.to_dict()
@@ -474,16 +496,19 @@ class Node:
 
         elif msg_type == MessageType.BROADCAST_BEACON_BLOCK:
             if self.get_stage() == Stage.MINING and self._get_final_block():
-                block = DeserializeService.deserialize_beacon_block(data)
-                self._new_beacon_block = None
+                if (self._i_am_beacon_creator and self._new_beacon_block) or not self._i_am_beacon_creator:
+                    block = DeserializeService.deserialize_beacon_block(data)
+                    self._new_beacon_block = None
 
-                if self.is_beacon_node():
-                    self.beacon.add_block(block)
-                    self._check_cross_transaction_sending()
+                    if self.is_beacon_node():
+                        self.beacon.add_block(block)
+                        self._check_cross_transaction_sending()
 
         elif msg_type == MessageType.CONTINUE_MINING:
             if self._get_final_block():
-                self._verify_and_add_block(self._get_final_block())
+                self._i_am_beacon_creator = False
+                self._broadcasted_bblock = False
+                self.verify_and_add_block(self._get_final_block())
                 self._set_final_block(None)
                 if self._is_leader():
                     self._update_stake()
@@ -549,15 +574,12 @@ class Node:
                 except Exception as e:
                     print(f"❌ Failed to send {message['type']} → {peer}: {e}")
 
-    def _try_to_add_beacon_block(self) -> bool:
+    def _can_add_beacon_block(self) -> bool:
         if not self._is_beacon_creator():
             return False
         if not self.is_beacon_node():
             return False
-        elif 3 * len(self._new_beacon_block.validator_signatures) >= 2 * len(self.beacon_nodes):
-            self.beacon.add_block(self._new_beacon_block)
-            return True
-        return False
+        return 3 * len(self._new_beacon_block.validator_signatures) >= 2 * len(self.beacon_nodes)
 
     def _is_beacon_creator(self):
         return (self._new_beacon_block is not None) and (self._new_beacon_block.proposer_address == self.address)
@@ -572,9 +594,10 @@ class Node:
         })
 
     def _send_beacon_block(self):
+        self._i_am_beacon_creator = True
         self._new_beacon_block = self.beacon.form_block(self.address)
         self._broadcast_beacon_block(self._new_beacon_block)
-        self._message_queue.put(
+        self.message_queue.put(
             {
                 MessageField.TYPE: MessageType.BEACON_BLOCK,
                 MessageField.DATA: self._new_beacon_block.to_dict()
@@ -738,7 +761,7 @@ class Node:
             message = {MessageField.TYPE: MessageType.MINING}
             self._broadcast(message)
             if self.role == Role.MINER:
-                self._message_queue.put(message)
+                self.message_queue.put(message)
 
     def _broadcast_presence(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
