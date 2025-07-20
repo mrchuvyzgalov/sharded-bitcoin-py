@@ -154,7 +154,7 @@ During the experiment, the miner sends 1 BTC every 0.08 seconds to a randomly se
 3. **Random-case:** each miner sends 1 BTC every 0.08 seconds to randomly selected nodes, resulting in a probabilistic mix of intra- and cross-shard transactions  
 This setup enables the estimation of the approximate transactions-per-second (TPS) under each scenario.
 
-In ordef to launch miner, execute the following command:
+In order to launch miner, execute the following command:
 
 ```bash
 python research.py miner {number of shard (0/1)}
@@ -180,11 +180,14 @@ python research.py user 1
 
 To start the research, you need to follow these steps:  
 
-1. Launch miner node and wait until the miner preparation is complete  
-2. Launch 3 non-miner nodes  
-3. Pass the addresses of other nodes to the miner node via CLI  
-4. Launch researching in the miner node and wait the results  
-5. When the research is complete, you will see the following results: amount of added transactions, time spent and tps
+1. Launch preparation research file:
+   ```bash
+    python pre_research.py
+    ```
+2. Launch 2 miner nodes (one in shard 0 and one in shard 1) (you should use docker containers)  
+3. Launch 2 non-miner nodes (one in shard 0 and one in shard 1) (you should use docker containers)  
+5. Launch researching in both miner nodes and wait the results  
+6. When the research is complete, you will see the following results: amount of added transactions in the shard, time spent and tps
 
 
 ---
