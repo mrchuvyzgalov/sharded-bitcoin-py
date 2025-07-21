@@ -145,13 +145,13 @@ pytest integration_tests.py
 
 The research on transactions per second (TPS) is a crucial part of my Master’s Thesis, aimed at comparing two different Bitcoin architectures. This module is designed to measure the TPS of the system.  
 
-The experiment involves 2 miner nodes (one node in shard 0, one node in shard 1) and 2 non-miner nodes (one node in shard 0, one node in shard 1). First, the miners are initialized and mines 2000 blocks to prepare the blockchain. After this preparation phase, the 2 non-miner nodes join the network.  
+The experiment involves 2 miner nodes (one node in shard 0, one node in shard 1) and 2 non-miner nodes (one node in shard 0, one node in shard 1). First, the miners are initialized and mines 30 blocks with 1001 transactions in each block to prepare the blockchain. After this preparation phase, the 2 non-miner nodes join the network.  
 
 During the experiment, the miner sends 1 BTC every 0.08 seconds to a randomly selected node, with the experiment running until 3 new blocks are mined. Three modes of sharded Bitcoin operation are tested:
 
-1. **Best-case (intra-shard transfers):** each miner sends 1 BTC every 0.08 seconds to nodes within the same shard, minimizing cross-shard overhead  
-2. **Worst-case (cross-shard transfers):** each miner sends 1 BTC every 0.08 seconds to nodes in different shards, maximizing inter-shard coordination via the Beacon Chain  
-3. **Random-case:** each miner sends 1 BTC every 0.08 seconds to randomly selected nodes, resulting in a probabilistic mix of intra- and cross-shard transactions  
+1. **Best-case (intra-shard transfers):** each miner sends 1 BTC every 0.01 seconds to nodes within the same shard, minimizing cross-shard overhead  
+2. **Worst-case (cross-shard transfers):** each miner sends 1 BTC every 0.01 seconds to nodes in different shards, maximizing inter-shard coordination via the Beacon Chain  
+3. **Random-case:** each miner sends 1 BTC every 0.01 seconds to randomly selected nodes, resulting in a probabilistic mix of intra- and cross-shard transactions  
 This setup enables the estimation of the approximate transactions-per-second (TPS) under each scenario.
 
 In order to launch miner, execute the following command:
