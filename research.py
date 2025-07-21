@@ -12,7 +12,7 @@ from wallet import load_wallet, get_public_key, pubkey_to_address
 
 amount_of_generated_blocks = 3
 coins_to_send = 1
-delay = 0.08
+delay = 0.01
 
 def start_best_case_research(node: Node, addresses: list[str]) -> (int, float): # (amount of added txs, time)
     amount_of_blocks_before = len(node.blockchain.chain)
@@ -152,6 +152,8 @@ def get_addresses(node: Node) -> list[str]:
 if __name__ == "__main__":
     role = Role.USER
     Constants.EPOCH = 10000
+    Constants.TIME_TO_SLEEP = 600
+    AMOUNT_OF_START_BLOCKS = 30
     shard = None
     wallet_file = "my_wallet.txt"
 
@@ -181,4 +183,10 @@ if __name__ == "__main__":
 
     node.start()
 
+    while True:
+        time.sleep(2)
+        if len(node.blockchain.chain) >= AMOUNT_OF_START_BLOCKS:
+            break
+
+    print("❗❗❗You can start research...")
     show_menu(node)

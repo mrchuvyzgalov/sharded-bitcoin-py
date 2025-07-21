@@ -20,9 +20,10 @@ class Block:
         self.nonce = nonce
         self.timestamp = timestamp or time.time()
 
+        self._tx_hash = hashlib.sha256("".join(tx.hash() for tx in self.transactions).encode()).hexdigest()
+
     def hash(self) -> str:
-        block_string = f"{self.index}{self.previous_hash}{self.nonce}{self.timestamp}" + \
-            "".join(tx.hash() for tx in self.transactions)
+        block_string = f"{self.index}{self.previous_hash}{self.nonce}{self.timestamp}{self._tx_hash}"
         return hashlib.sha256(block_string.encode()).hexdigest()
 
     def to_dict(self) -> dict:
