@@ -4,3 +4,4 @@ WORKDIR /app
 COPY . .
 
 RUN pip install ecdsa
+RUN pip install numpy

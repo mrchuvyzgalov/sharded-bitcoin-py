@@ -1,7 +1,11 @@
 import json
 import random
+import statistics
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
+
+import numpy as np
 
 from constants import Role, Stage, Constants
 from deserialize_service import DeserializeService
@@ -14,13 +18,29 @@ amount_of_generated_blocks = 3
 coins_to_send = 1
 delay = 0.01
 
-def start_best_case_research(node: Node, addresses: list[str]) -> (int, float): # (amount of added txs, time)
+def start_best_case_research(node: Node, addresses: list[str]) -> None:
+    # time_of_work, amount of transactions, tps, transaction latency
+
     amount_of_blocks_before = len(node.blockchain.chain)
+
+    tx_submit_time = {}
+    tx_latencies = []
+
+    old_amount_of_blocks = len(node.blockchain.chain)
 
     amount_of_added_txs = 0
     start = time.time()
 
     while len(node.blockchain.chain) - amount_of_blocks_before != amount_of_generated_blocks:
+        if len(node.blockchain.chain) - old_amount_of_blocks == 1:
+            old_amount_of_blocks = len(node.blockchain.chain)
+
+            for tx in node.blockchain.chain[-1].transactions:
+                tx_id = tx.hash()
+                if tx_id in tx_submit_time:
+                    latency = time.time() - tx_submit_time[tx_id]
+                    tx_latencies.append(latency)
+
         if node.get_stage() != Stage.TX:
             time.sleep(delay)
             continue
@@ -31,18 +51,91 @@ def start_best_case_research(node: Node, addresses: list[str]) -> (int, float): 
         tx = create_transaction(node, address, coins_to_send)
         if node.add_and_broadcast_tx(tx):
             amount_of_added_txs += 1
+            tx_submit_time[tx.hash()] = time.time()
 
         time.sleep(delay)
 
-    return amount_of_added_txs, time.time() - start
+    time_of_work = time.time() - start
+    tps = amount_of_added_txs / time_of_work
 
-def start_worse_case_research(node: Node, addresses: list[str]) -> (int, float): # (amount of added txs, time)
+    print("Amount of transactions: ", amount_of_added_txs)
+    print("Time spent: ", time_of_work / 60.0, " minutes")
+    print("TPS: ", tps)
+
+    print("📊 Transaction Latency (ms):")
+    with open("research_files/t_latency.txt", "w") as f:
+        for item in tx_latencies:
+            f.write(f"{item}\n")
+    print(f"  avg: {np.mean(tx_latencies) * 1000:.2}")
+    print(f"  min: {np.min(tx_latencies) * 1000:.2}")
+    print(f"  max: {np.max(tx_latencies) * 1000:.2}")
+    print(f"  std: {np.std(tx_latencies) * 1000:.2}")
+
+    # read_latency
+
+    latencies = []
+    addresses.append(node.address)
+
+    for i in range(2000):
+        addr = addresses[i % len(addresses)]
+        if ShardService.get_shard_id(addr) != ShardService.get_shard_id(node.address):
+            continue
+        t1 = time.perf_counter()
+        node.blockchain.get_balance(addr)
+        t2 = time.perf_counter()
+        latencies.append(t2 - t1)
+
+    print("Read Latency (ns):")
+    print(f"  avg: {statistics.mean(latencies) * 1_000_000_000:.2f}")
+    print(f"  min: {min(latencies) * 1_000_000_000:.2f}")
+    print(f"  max: {max(latencies) * 1_000_000_000:.2f}")
+    print(f"  std: {statistics.stdev(latencies) * 1_000_000_000:.2f}")
+
+    # read_throughput
+
+    NUM_THREADS = 10
+    READS_PER_THREAD = 1000
+
+    def read_task():
+        count = 0
+        for i in range(READS_PER_THREAD):
+            node.blockchain.get_balance(node.address)
+            count += 1
+        return count
+
+    start = time.time()
+    with ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
+        futures = [executor.submit(read_task) for _ in range(NUM_THREADS)]
+        results = [f.result() for f in futures]
+    end = time.time()
+
+    total_reads = sum(results)
+    throughput = total_reads / (end - start)
+    print(f"Read Throughput: {throughput:.2f} reads/sec")
+
+def start_worse_case_research(node: Node, addresses: list[str]) -> None:
+    # time_of_work, amount of transactions, tps, transaction latency
+
     amount_of_blocks_before = len(node.blockchain.chain)
+
+    tx_submit_time = {}
+    tx_latencies = []
+
+    old_amount_of_blocks = len(node.blockchain.chain)
 
     amount_of_added_txs = 0
     start = time.time()
 
     while len(node.blockchain.chain) - amount_of_blocks_before != amount_of_generated_blocks:
+        if len(node.blockchain.chain) - old_amount_of_blocks == 1:
+            old_amount_of_blocks = len(node.blockchain.chain)
+
+            for tx in node.blockchain.chain[-1].transactions:
+                tx_id = tx.hash()
+                if tx_id in tx_submit_time:
+                    latency = time.time() - tx_submit_time[tx_id]
+                    tx_latencies.append(latency)
+
         if node.get_stage() != Stage.TX:
             time.sleep(delay)
             continue
@@ -53,18 +146,92 @@ def start_worse_case_research(node: Node, addresses: list[str]) -> (int, float):
         tx = create_transaction(node, address, coins_to_send)
         if node.add_and_broadcast_tx(tx):
             amount_of_added_txs += 1
+            tx_submit_time[tx.hash()] = time.time()
 
         time.sleep(delay)
 
-    return amount_of_added_txs, time.time() - start
+    time_of_work = time.time() - start
+    tps = amount_of_added_txs / time_of_work
 
-def start_random_case_research(node: Node, addresses: list[str]) -> (int, float): # (amount of added txs, time)
+    print("Amount of transactions: ", amount_of_added_txs)
+    print("Time spent: ", time_of_work / 60.0, " minutes")
+    print("TPS: ", tps)
+
+    print("📊 Transaction Latency (ms):")
+    with open("research_files/t_latency.txt", "w") as f:
+        for item in tx_latencies:
+            f.write(f"{item}\n")
+    print(f"  avg: {np.mean(tx_latencies) * 1000:.2}")
+    print(f"  min: {np.min(tx_latencies) * 1000:.2}")
+    print(f"  max: {np.max(tx_latencies) * 1000:.2}")
+    print(f"  std: {np.std(tx_latencies) * 1000:.2}")
+
+    # read_latency
+
+    latencies = []
+    addresses.append(node.address)
+
+    for i in range(2000):
+        addr = addresses[i % len(addresses)]
+        if ShardService.get_shard_id(addr) != ShardService.get_shard_id(node.address):
+            continue
+        t1 = time.perf_counter()
+        node.blockchain.get_balance(addr)
+        t2 = time.perf_counter()
+        latencies.append(t2 - t1)
+
+    print("Read Latency (ns):")
+    print(f"  avg: {statistics.mean(latencies) * 1_000_000_000:.2f}")
+    print(f"  min: {min(latencies) * 1_000_000_000:.2f}")
+    print(f"  max: {max(latencies) * 1_000_000_000:.2f}")
+    print(f"  std: {statistics.stdev(latencies) * 1_000_000_000:.2f}")
+
+    # read_throughput
+
+    NUM_THREADS = 10
+    READS_PER_THREAD = 1000
+
+    def read_task():
+        count = 0
+        for i in range(READS_PER_THREAD):
+            node.blockchain.get_balance(node.address)
+            count += 1
+        return count
+
+    start = time.time()
+    with ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
+        futures = [executor.submit(read_task) for _ in range(NUM_THREADS)]
+        results = [f.result() for f in futures]
+    end = time.time()
+
+    total_reads = sum(results)
+    throughput = total_reads / (end - start)
+    print(f"Read Throughput: {throughput:.2f} reads/sec")
+
+
+def start_random_case_research(node: Node, addresses: list[str]) -> None:
+    # time_of_work, amount of transactions, tps, transaction latency
+
     amount_of_blocks_before = len(node.blockchain.chain)
+
+    tx_submit_time = {}
+    tx_latencies = []
+
+    old_amount_of_blocks = len(node.blockchain.chain)
 
     amount_of_added_txs = 0
     start = time.time()
 
     while len(node.blockchain.chain) - amount_of_blocks_before != amount_of_generated_blocks:
+        if len(node.blockchain.chain) - old_amount_of_blocks == 1:
+            old_amount_of_blocks = len(node.blockchain.chain)
+
+            for tx in node.blockchain.chain[-1].transactions:
+                tx_id = tx.hash()
+                if tx_id in tx_submit_time:
+                    latency = time.time() - tx_submit_time[tx_id]
+                    tx_latencies.append(latency)
+
         if node.get_stage() != Stage.TX:
             time.sleep(delay)
             continue
@@ -72,10 +239,67 @@ def start_random_case_research(node: Node, addresses: list[str]) -> (int, float)
         tx = create_transaction(node, random.choice(addresses), coins_to_send)
         if node.add_and_broadcast_tx(tx):
             amount_of_added_txs += 1
+            tx_submit_time[tx.hash()] = time.time()
 
         time.sleep(delay)
 
-    return amount_of_added_txs, time.time() - start
+    time_of_work = time.time() - start
+    tps = amount_of_added_txs / time_of_work
+
+    print("Amount of transactions: ", amount_of_added_txs)
+    print("Time spent: ", time_of_work / 60.0, " minutes")
+    print("TPS: ", tps)
+
+    print("📊 Transaction Latency (ms):")
+    with open("research_files/t_latency.txt", "w") as f:
+        for item in tx_latencies:
+            f.write(f"{item}\n")
+    print(f"  avg: {np.mean(tx_latencies) * 1000:.2}")
+    print(f"  min: {np.min(tx_latencies) * 1000:.2}")
+    print(f"  max: {np.max(tx_latencies) * 1000:.2}")
+    print(f"  std: {np.std(tx_latencies) * 1000:.2}")
+
+    # read_latency
+
+    latencies = []
+    addresses.append(node.address)
+
+    for i in range(2000):
+        addr = addresses[i % len(addresses)]
+        if ShardService.get_shard_id(addr) != ShardService.get_shard_id(node.address):
+            continue
+        t1 = time.perf_counter()
+        node.blockchain.get_balance(addr)
+        t2 = time.perf_counter()
+        latencies.append(t2 - t1)
+
+    print("Read Latency (ns):")
+    print(f"  avg: {statistics.mean(latencies) * 1_000_000_000:.2f}")
+    print(f"  min: {min(latencies) * 1_000_000_000:.2f}")
+    print(f"  max: {max(latencies) * 1_000_000_000:.2f}")
+    print(f"  std: {statistics.stdev(latencies) * 1_000_000_000:.2f}")
+
+    # read_throughput
+
+    NUM_THREADS = 10
+    READS_PER_THREAD = 1000
+
+    def read_task():
+        count = 0
+        for i in range(READS_PER_THREAD):
+            node.blockchain.get_balance(node.address)
+            count += 1
+        return count
+
+    start = time.time()
+    with ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
+        futures = [executor.submit(read_task) for _ in range(NUM_THREADS)]
+        results = [f.result() for f in futures]
+    end = time.time()
+
+    total_reads = sum(results)
+    throughput = total_reads / (end - start)
+    print(f"Read Throughput: {throughput:.2f} reads/sec")
 
 def show_menu(node: Node):
     addresses = get_addresses(node)
@@ -90,24 +314,18 @@ def show_menu(node: Node):
         choice = input("Choice: ").strip()
         if choice == "1":
             print("Best case research started")
-            tx_amount, sec = start_best_case_research(node, addresses)
-            print("Amount of transactions: ", tx_amount)
-            print("Time spent: ", sec / 60.0, " minutes")
-            print("TPS: ", tx_amount / sec)
+            start_best_case_research(node, addresses)
+            print("Best case research finished")
 
         elif choice == "2":
             print("Worse case research started")
-            tx_amount, sec = start_worse_case_research(node, addresses)
-            print("Amount of transactions: ", tx_amount)
-            print("Time spent: ", sec / 60.0, " minutes")
-            print("TPS: ", tx_amount / sec)
+            start_worse_case_research(node, addresses)
+            print("Worse case research finished")
 
         elif choice == "3":
             print("Random case research started")
-            tx_amount, sec = start_random_case_research(node, addresses)
-            print("Amount of transactions: ", tx_amount)
-            print("Time spent: ", sec / 60.0, " minutes")
-            print("TPS: ", tx_amount / sec)
+            start_random_case_research(node, addresses)
+            print("Random case research finished")
 
         elif choice == "0":
             node.disconnect()
